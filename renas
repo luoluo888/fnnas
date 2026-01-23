@@ -460,8 +460,7 @@ query_kernel() {
                 latest_version="$(
                     curl -fsSL \
                         ${kernel_api}/releases/expanded_assets/kernel_fnnas |
-                        grep -oE "${kernel_verpatch}\.[0-9]+\-${key}\.tar\.gz" |
-                        sed -E "s/-${key}\.tar\.gz//" |
+                        grep -oP "${kernel_verpatch}\.[0-9]+(?=-${key}\.tar\.gz)" |
                         sort -urV | head -n 1
                 )"
 
@@ -482,6 +481,22 @@ query_kernel() {
             ((x++))
         }
     done
+}
+
+check_kernel() {
+    [[ -n "${1}" ]] && check_path="${1}" || error_msg "Invalid kernel path to check."
+    check_files=($(cat "${check_path}/sha256sums" | awk '{print $2}'))
+    for cf in "${check_files[@]}"; do
+        {
+            # Check if file exists
+            [[ -s "${check_path}/${cf}" ]] || error_msg "The [ ${cf} ] file is missing."
+            # Check if the file sha256sum is correct
+            tmp_sha256sum="$(sha256sum "${check_path}/${cf}" | awk '{print $1}')"
+            tmp_checkcode="$(cat ${check_path}/sha256sums | grep ${cf} | awk '{print $1}')"
+            [[ "${tmp_sha256sum}" == "${tmp_checkcode}" ]] || error_msg "[ ${cf} ]: sha256sum verification failed."
+        }
+    done
+    echo -e "${INFO} All [ ${#check_files[@]} ] kernel files are sha256sum checked to be complete.\n"
 }
 
 download_kernel() {
@@ -514,6 +529,11 @@ download_kernel() {
                 else
                     echo -e "${INFO} (${x}.${i}) [ ${key} - ${kernel_var} ] Kernel is in the local directory."
                 fi
+
+                # If the kernel contains the sha256sums file, check the files integrity
+                [[ -f "${kernel_path}/${kernel_var}/${kernel_var}-${key}/sha256sums" ]] && {
+                    check_kernel "${kernel_path}/${kernel_var}/${kernel_var}-${key}"
+                }
 
                 ((i++))
             done

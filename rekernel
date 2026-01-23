@@ -439,7 +439,13 @@ chroot_fnnas() {
     tar -czf "${out_path}/${kernel_out}/modules-${platform_name}-${kernel_version}.tar.gz" -C "${tmp_outpath}/modules" .
     tar -czf "${out_path}/${kernel_out}/header-${platform_name}-${kernel_version}.tar.gz" -C "${tmp_outpath}/headers" .
 
+    # Add sha256sum integrity verification file
+    echo -e "${INFO} Generating sha256sums file..."
+    cd "${out_path}/${kernel_out}/"
+    sha256sum * >sha256sums
+
     # Final packaging
+    cd "${current_path}"
     rm -f ${out_path}/${kernel_out}.tar.gz
     tar -czf "${out_path}/${kernel_out}.tar.gz" -C "${out_path}" "${kernel_out}"
     rm -rf "${out_path}/${kernel_out}"
