@@ -99,14 +99,21 @@ add_scripts() {
 
     # Create hook script to generate uInitrd
     cat >/etc/initramfs/post-update.d/99-uboot <<'HOOK'
-#!/bin/bash
+#!/bin/sh
 # Generate uInitrd
 # $1 = kernel version
 
-tempname="/boot/uInitrd-$1"
-echo "update-initramfs: fnnas: Converting to u-boot format: ${tempname}..." >&2
-mkimage -A arm64 -O linux -T ramdisk -C none -n uInitrd -d "$2" "$tempname" >/dev/null 2>&1
-ln -sfv $(basename "$tempname") /boot/uInitrd >/dev/null 2>&1 || cp -fv "$tempname" /boot/uInitrd
+K_VER="$1"
+INITRD_FILE="/boot/initrd.img-${K_VER}"
+UINITRD_FILE="/boot/uInitrd-${K_VER}"
+
+echo "update-initramfs: fnnas: Converting to u-boot format: ${UINITRD_FILE}..." >&2
+[ -f "${INITRD_FILE}" ] || { echo "update-initramfs: fnnas: ERROR: initrd not found: ${INITRD_FILE}" >&2; exit 0; }
+if ! mkimage -A arm64 -O linux -T ramdisk -C none -n uInitrd -d "${INITRD_FILE}" "${UINITRD_FILE}"; then
+    echo "update-initramfs: fnnas: ERROR: mkimage failed!" >&2
+    exit 0
+fi
+ln -sfn "$(basename "${UINITRD_FILE}")" /boot/uInitrd
 
 echo "update-initramfs: fnnas: done." >&2
 exit 0
