@@ -1,8 +1,20 @@
 #!/bin/sh
+#==================================================================================================
+#
+# Function: fnNAS Kernel Auto-Completion Update Script
+# Copyright (C) 2026- https://github.com/ophub/fnnas
+#
+# Contributed by: https://github.com/yizhaoyiximh
+# Inspired by: https://github.com/ophub/fnnas/issues/584
+#
+#==================================================================================================
 
+# Get the kernel version from the first argument
+version="$1"
 # Post-update hook for fnNAS ARM64 boards: copy/link kernel files to platform-specific locations
 ophub_release_file="/etc/ophub-release"
-version="$1"
+# Configuration file for update-initramfs
+initramfs_conf="/etc/initramfs-tools/update-initramfs.conf"
 
 # Load platform information from ophub-release file
 [ -f "${ophub_release_file}" ] && {
@@ -22,7 +34,6 @@ fi
 echo "update-initramfs: fnnas: Platform: ${PLATFORM}, Model ID: ${MODEL_ID}, Kernel Version: ${version}" >&2
 
 # Force enable update_initramfs (may be set to 'no' by some packages)
-initramfs_conf="/etc/initramfs-tools/update-initramfs.conf"
 [ -f "${initramfs_conf}" ] && {
     sed -i "s|^update_initramfs=.*|update_initramfs=yes|g" "${initramfs_conf}"
 }
@@ -41,18 +52,18 @@ fi
 if [ -f "/boot/uInitrd-${version}" ]; then
     case "${PLATFORM}" in
     allwinner)
-        cp -f "/boot/uInitrd-${version}" /boot/uInitrd
-        cp -f "/boot/vmlinuz-${version}" /boot/Image
+        (cd /boot && cp -f "uInitrd-${version}" uInitrd)
+        (cd /boot && cp -f "vmlinuz-${version}" Image)
         echo "update-initramfs: fnnas: Copied uInitrd and kernel Image for allwinner" >&2
         ;;
     amlogic)
-        cp -f "/boot/uInitrd-${version}" /boot/uInitrd
-        cp -f "/boot/vmlinuz-${version}" /boot/zImage
+        (cd /boot && cp -f "uInitrd-${version}" uInitrd)
+        (cd /boot && cp -f "vmlinuz-${version}" zImage)
         echo "update-initramfs: fnnas: Copied uInitrd and kernel zImage for amlogic" >&2
         ;;
     rockchip)
-        ln -sfn "/boot/uInitrd-${version}" /boot/uInitrd
-        ln -sfn "/boot/vmlinuz-${version}" /boot/Image
+        (cd /boot && ln -sfn "uInitrd-${version}" uInitrd)
+        (cd /boot && ln -sfn "vmlinuz-${version}" Image)
         echo "update-initramfs: fnnas: Linked uInitrd and kernel Image for rockchip" >&2
         ;;
     *)
@@ -64,7 +75,7 @@ fi
 # Board-specific kernel file adjustments
 case "${MODEL_ID}" in
 r306 | r307)
-    [ -f "/boot/initrd.img-${version}" ] && ln -sfn /boot/initrd.img-${version} /boot/uInitrd
+    [ -f "/boot/initrd.img-${version}" ] && (cd /boot && ln -sfn "initrd.img-${version}" uInitrd)
     echo "update-initramfs: fnnas: Board-specific uInitrd symlink applied for MODEL_ID ${MODEL_ID}" >&2
     ;;
 *)
@@ -96,9 +107,9 @@ fnenv_extlinux_file="/boot/extlinux/extlinux.conf"
 }
 
 # Restore update_initramfs to 'no' to avoid unnecessary regeneration
-initramfs_conf="/etc/initramfs-tools/update-initramfs.conf"
 [ -f "${initramfs_conf}" ] && {
     sed -i "s|^update_initramfs=.*|update_initramfs=no|g" "${initramfs_conf}"
 }
 
+sync
 exit 0
